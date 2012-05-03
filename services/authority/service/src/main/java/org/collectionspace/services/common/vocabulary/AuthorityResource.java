@@ -82,6 +82,8 @@ import javax.ws.rs.core.UriInfo;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.collectionspace.services.client.*;
+import org.collectionspace.services.nuxeo.util.NuxeoUtils;
 
 /**
  * The Class AuthorityResource.
@@ -180,6 +182,8 @@ public abstract class AuthorityResource<AuthCommon, AuthItemHandler>
     }
 
     public abstract String getItemServiceName();
+    
+    public abstract String getItemTermInfoGroupXPathBase();
 
     @Override
     protected String getVersionString() {
@@ -223,9 +227,12 @@ public abstract class AuthorityResource<AuthCommon, AuthItemHandler>
         docHandler = (AuthorityItemDocumentModelHandler<?>) createDocumentHandler(ctx,
                 ctx.getCommonPartLabel(getItemServiceName()),
                 authCommonClass);
+        // FIXME - Richard and Aron think the following three lines should
+        // be in the constructor for the AuthorityItemDocumentModelHandler
+        // because all three are required fields.
         docHandler.setInAuthority(inAuthority);
         docHandler.setAuthorityRefNameBase(authorityRefNameBase);
-
+        docHandler.setItemTermInfoGroupXPathBase(getItemTermInfoGroupXPathBase());
         return docHandler;
     }
 
@@ -329,8 +336,8 @@ public abstract class AuthorityResource<AuthCommon, AuthItemHandler>
     }
 
 
-    @POST
-    public Response createAuthority(String xmlPayload) {
+    @POST													//FIXME: REM - 5/1/2012 - We can probably remove this method.
+    public Response createAuthority(String xmlPayload) { 	//REM - This method is never reached by the JAX-RS client -instead the "create" method in ResourceBase.java is getting called.
         try {
             PoxPayloadIn input = new PoxPayloadIn(xmlPayload);
             ServiceContext<PoxPayloadIn, PoxPayloadOut> ctx = createServiceContext(input);
@@ -439,6 +446,7 @@ public abstract class AuthorityResource<AuthCommon, AuthItemHandler>
             throw bigReThrow(e, ServiceMessages.GET_FAILED);
         }
     }
+    
 
     /**
      * Update authority.
@@ -664,8 +672,9 @@ public abstract class AuthorityResource<AuthCommon, AuthItemHandler>
             String keywords = queryParams.getFirst(IQueryManager.SEARCH_TYPE_KEYWORDS_KW);
             String advancedSearch = queryParams.getFirst(IQueryManager.SEARCH_TYPE_KEYWORDS_AS);
 
-            String qualifiedDisplayNameField = authorityItemCommonSchemaName + ":"
-                    + AuthorityItemJAXBSchema.DISPLAY_NAME;
+            String qualifiedDisplayNameField =
+                    NuxeoUtils.getPrimaryElPathPropertyName(authorityItemCommonSchemaName,
+                        getItemTermInfoGroupXPathBase(), AuthorityItemJAXBSchema.TERM_DISPLAY_NAME);
 
             // Note that docType defaults to the ServiceName, so we're fine with that.
             ServiceContext<PoxPayloadIn, PoxPayloadOut> ctx = null;
@@ -718,7 +727,8 @@ public abstract class AuthorityResource<AuthCommon, AuthItemHandler>
             }
             if (logger.isDebugEnabled()) {
                 logger.debug("getAuthorityItemList filtered WHERE clause: "
-                        + myFilter.getWhereClause());
+                        + myFilter.getWhereClause() 
+                        + " and ORDER BY clause: " + myFilter.getOrderByClause());
             }
             getRepositoryClient(ctx).getFiltered(ctx, handler);
             return (AbstractCommonList) handler.getCommonPartList();
