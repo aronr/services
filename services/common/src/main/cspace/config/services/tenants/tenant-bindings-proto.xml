@@ -1543,18 +1543,24 @@
             <service:documentHandler xmlns:service="http://collectionspace.org/services/config/service">org.collectionspace.services.vocabulary.nuxeo.VocabularyItemDocumentModelHandler</service:documentHandler>
             <service:DocHandlerParams xmlns:service="http://collectionspace.org/services/config/service">
                 <service:params>
-                	<service:SupportsHierarchy>true</service:SupportsHierarchy>
-                	<service:RefnameDisplayNameField>
+                    <service:SupportsHierarchy>true</service:SupportsHierarchy>
+                    <service:ListResultsFields>
+                        <!-- Omit the standard AuthorityItem fields (they are handled by the code) -->
+                        <service:ListResultField>
+                            <service:element>description</service:element>
+                            <service:xpath>description</service:xpath>
+                        </service:ListResultField>
                         <service:ListResultField>
                             <service:element>order</service:element>
                             <service:xpath>order</service:xpath>
                         </service:ListResultField>
-                	</service:RefnameDisplayNameField>
-                    <service:ListResultsFields>
-                        <!-- Omit the standard AuthorityItem fields (they are handled by the code) -->
                         <service:ListResultField>
-                            <service:element>order</service:element>
-                            <service:xpath>order</service:xpath>
+                            <service:element>source</service:element>
+                            <service:xpath>source</service:xpath>
+                        </service:ListResultField>
+                        <service:ListResultField>
+                            <service:element>sourcePage</service:element>
+                            <service:xpath>sourcePage</service:xpath>
                         </service:ListResultField>
                     </service:ListResultsFields>
                 </service:params>
