@@ -20,15 +20,17 @@ package org.collectionspace.services.common.document;
 /**
  * TransactionException
  * 
- */
+ */ */
+
 public class TransactionException extends DocumentException {
 
     // Custom HTTP status code, per the extensibility offered via RFC-2616
     // e.g. http://tools.ietf.org/html/rfc2616#section-6.1.1
     final public static int HTTP_CODE = 590;
     
-    final static String TRANSACTION_FAILED_MSG = 
-        "A transaction failed, whether due to exceeding a timeout value or some other cause. Please contact your system administrator.";
+    final static String TRANSACTION_FAILED_MSG =
+            "A transaction failed, either because it timed out or due to some other cause. " +
+            "Please contact your system administrator.";
 
     /**
      * Creates a new instance of <code>TransactionException</code> without detail message.
