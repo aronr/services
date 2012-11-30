@@ -20,7 +20,7 @@ package org.collectionspace.services.common.document;
 /**
  * TransactionException
  * 
- */ */
+ */
 
 public class TransactionException extends DocumentException {
 
