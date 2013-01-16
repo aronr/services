@@ -13,6 +13,7 @@ import org.nuxeo.ecm.core.api.ClientException;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.core.api.DocumentModelList;
+import org.nuxeo.ecm.core.api.event.DocumentEventTypes;
 import org.nuxeo.ecm.core.event.Event;
 import org.nuxeo.ecm.core.event.EventContext;
 import org.nuxeo.ecm.core.event.EventListener;
@@ -44,6 +45,8 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             "AND (ecm:currentLifeCycleState <> 'deleted') "
             + "AND ecm:isProxy = 0 "
             + "AND ecm:isCheckedInVersion = 0";
+    private boolean isAboutToBeRemovedEvent = false;
+    private String movementCsidToFilter = "";
 
     @Override
     public void handleEvent(Event event) throws ClientException {
@@ -61,6 +64,10 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
         DocumentEventContext docEventContext = (DocumentEventContext) eventContext;
         DocumentModel docModel = docEventContext.getSourceDocument();
 
+        if (event.getName().equals(DocumentEventTypes.ABOUT_TO_REMOVE)) {
+            isAboutToBeRemovedEvent = true;
+        }
+
         // If this document event involves a Relation record, does this pertain to
         // a relationship between a Movement record and a CollectionObject record?
         //
@@ -76,13 +83,21 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             if (logger.isTraceEnabled()) {
                 logger.trace("An event involving a Relation document was received by UpdateObjectLocationOnMove ...");
             }
-            // Get a Movement CSID from the Relation record. (If we can't
-            // get it, then we don't have a pertinent relation record.)
+            // Get a Movement CSID from the Relation record.
+            //
+            // If we can't get it - if this Relation doesn't involve a
+            // Movement - then we don't have a pertinent relation record
+            // that can be processed by this event listener / handler.)
             movementCsid = getCsidForDesiredDocType(docModel, MOVEMENT_DOCTYPE, COLLECTIONOBJECT_DOCTYPE);
             if (Tools.isBlank(movementCsid)) {
                 logger.warn("Could not obtain CSID for Movement record from document event.");
                 logger.warn(NO_FURTHER_PROCESSING_MESSAGE);
                 return;
+            }
+            // If this Relation record is about to be (hard) deleted, set aside
+            // its CSID so it can filtered out in all subsequent processing.
+            if (isAboutToBeRemovedEvent) {
+                movementCsidToFilter = movementCsid;
             }
         } else if (documentMatchesType(docModel, MOVEMENT_DOCTYPE)) {
             if (logger.isTraceEnabled()) {
@@ -94,6 +109,11 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
                 logger.warn("Could not obtain CSID for Movement record from document event.");
                 logger.warn(NO_FURTHER_PROCESSING_MESSAGE);
                 return;
+            }
+            // If this Movement record is about to be (hard) deleted, set aside
+            // its CSID so it can filtered out in all subsequent processing.
+            if (isAboutToBeRemovedEvent) {
+                movementCsidToFilter = movementCsid;
             }
         } else {
             if (logger.isTraceEnabled()) {
@@ -191,7 +211,8 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
                 continue;
             }
             // Get the CollectionObject's most recent, related Movement.
-            mostRecentMovementDocModel = getMostRecentMovement(coreSession, collectionObjectCsid);
+            mostRecentMovementDocModel = getMostRecentMovement(coreSession, collectionObjectCsid,
+                    isAboutToBeRemovedEvent, movementCsidToFilter);
             if (mostRecentMovementDocModel == null) {
                 continue;
             }
@@ -311,11 +332,16 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
      *
      * @param session a repository session.
      * @param collectionObjectCsid a CollectionObject identifier (CSID)
+     * @param isAboutToBeRemovedEvent whether the current event involves a
+     * record that is slated for removal (hard deletion)
+     * @param movementCsidToFilter the CSID of a Movement record
+     * slated for deletion. This record should be filtered out, prior to
+     * returning the most recent Movement record.
      * @throws ClientException
-     * @return the most recent Movement record related to the CollectionObject
-     * identified by the supplied CSID.
+     * @return the most recent Movement record related to a CollectionObject
      */
-    protected static DocumentModel getMostRecentMovement(CoreSession session, String collectionObjectCsid)
+    protected static DocumentModel getMostRecentMovement(CoreSession session, String collectionObjectCsid,
+            boolean isAboutToBeRemovedEvent, String aboutToBeRemovedMovementCsidToFilter)
             throws ClientException {
         DocumentModel mostRecentMovementDocModel = null;
         // Get Relation records for Movements related to this CollectionObject.
@@ -375,6 +401,13 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             }
             if (logger.isTraceEnabled()) {
                 logger.trace("Movement CSID=" + relatedMovementCsid);
+            }
+            // If our event involves a Movement record that is about to be
+            // (hard) deleted, filter out that record.
+            if (isAboutToBeRemovedEvent && Tools.notBlank(aboutToBeRemovedMovementCsidToFilter)) {
+                if (relatedMovementCsid.equals(aboutToBeRemovedMovementCsidToFilter)) {
+                    continue;
+                }
             }
             movementDocModel = getDocModelFromCsid(session, relatedMovementCsid);
             if (movementDocModel == null) {
