@@ -46,12 +46,17 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             + "AND ecm:isProxy = 0 "
             + "AND ecm:isCheckedInVersion = 0";
     private boolean isAboutToBeRemovedEvent = false;
-    private String movementCsidToFilter = "";
+    private String movementCsidToFilter;
+    private String eventType;
 
     @Override
     public void handleEvent(Event event) throws ClientException {
 
-        logger.trace("In handleEvent in UpdateObjectLocationOnMove ...");
+        if (logger.isTraceEnabled()) {
+            logger.trace("\n-----------------------------------------------------\n");
+            logger.trace("In handleEvent in UpdateObjectLocationOnMove ...");
+            logger.trace("\n-----------------------------------------------------\n");
+        }
 
         EventContext eventContext = event.getContext();
         if (eventContext == null) {
@@ -64,7 +69,12 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
         DocumentEventContext docEventContext = (DocumentEventContext) eventContext;
         DocumentModel docModel = docEventContext.getSourceDocument();
 
-        if (event.getName().equals(DocumentEventTypes.ABOUT_TO_REMOVE)) {
+        eventType = event.getName();
+        if (logger.isTraceEnabled()) {
+            logger.trace("A(n) " + eventType + " event was received by UpdateObjectLocationOnMove ...");
+        }
+
+        if (eventType.equals(DocumentEventTypes.ABOUT_TO_REMOVE)) {
             isAboutToBeRemovedEvent = true;
         }
 
@@ -168,6 +178,10 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             // Encountering a Movement record that is not related to any
             // CollectionObject is potentially a normal occurrence, so no
             // error messages are logged here when we stop handling this event.
+            if (logger.isTraceEnabled()) {
+                logger.trace("This event did not involve a document relevant to UpdateObjectLocationOnMove ...");
+                logger.trace("This Movement record does not have any Relations ...");
+            }
             return;
         }
 
@@ -188,7 +202,7 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             return;
         } else {
             if (logger.isTraceEnabled()) {
-                logger.trace("Found " + collectionObjectCsids.size() + " CSIDs of related CollectionObject records.");
+                logger.trace("Found " + collectionObjectCsids.size() + " CSID(s) of related CollectionObject records.");
             }
         }
 
@@ -219,6 +233,12 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             // Update the CollectionObject with values from that Movement.
             collectionObjectDocModel =
                     updateCollectionObjectValuesFromMovement(collectionObjectDocModel, mostRecentMovementDocModel);
+            if (logger.isTraceEnabled()) {
+                String computedCurrentLocationRefName =
+                        (String) collectionObjectDocModel.getProperty(COLLECTIONOBJECTS_COMMON_SCHEMA,
+                        COMPUTED_CURRENT_LOCATION_PROPERTY);
+                logger.trace("computedCurrentLocation refName after value update=" + computedCurrentLocationRefName);
+            }
             coreSession.saveDocument(collectionObjectDocModel);
         }
 
@@ -334,9 +354,9 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
      * @param collectionObjectCsid a CollectionObject identifier (CSID)
      * @param isAboutToBeRemovedEvent whether the current event involves a
      * record that is slated for removal (hard deletion)
-     * @param movementCsidToFilter the CSID of a Movement record
-     * slated for deletion. This record should be filtered out, prior to
-     * returning the most recent Movement record.
+     * @param movementCsidToFilter the CSID of a Movement record slated for
+     * deletion. This record should be filtered out, prior to returning the most
+     * recent Movement record.
      * @throws ClientException
      * @return the most recent Movement record related to a CollectionObject
      */
@@ -368,7 +388,7 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             return mostRecentMovementDocModel;
         } else {
             if (logger.isTraceEnabled()) {
-                logger.trace("Found " + relationDocModels.size() + " relations to Movement records to/from this CollectionObject record.");
+                logger.trace("Found " + relationDocModels.size() + " relation(s) to Movement records to/from this CollectionObject record.");
             }
         }
         // Iterate through related movement records, to find the related
@@ -406,6 +426,9 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             // (hard) deleted, filter out that record.
             if (isAboutToBeRemovedEvent && Tools.notBlank(aboutToBeRemovedMovementCsidToFilter)) {
                 if (relatedMovementCsid.equals(aboutToBeRemovedMovementCsidToFilter)) {
+                    if (logger.isTraceEnabled()) {
+                        logger.trace("Skipping about-to-be-deleted Movement record or referenced, related Movement record ...");
+                    }
                     continue;
                 }
             }
@@ -427,6 +450,9 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
                     (GregorianCalendar) movementDocModel.getProperty(MOVEMENTS_COMMON_SCHEMA, LOCATION_DATE_PROPERTY);
             if (locationDate == null) {
                 continue;
+            }
+            if (logger.isTraceEnabled()) {
+                logger.trace("locationDate=" + locationDate);
             }
             if (locationDate.after(mostRecentLocationDate)) {
                 mostRecentLocationDate = locationDate;
