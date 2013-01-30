@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmlReplay>
+    <auths>
+        <!-- IMPORTANT: THESE ARE STICKY :: THEY STICK AROUND UNTIL RESET, IN EXEC ORDER OF THIS FILE. -->
+        <auth ID="pahma">YWRtaW5AcGFobWEuY3NwYWNlLmJlcmtlbGV5LmVkdTpBZG1pbmlzdHJhdG9y</auth>
+    </auths>
+        
+    <!-- This tests the UpdateObjectLocationWithCrateBatchJob -->
+        
+    <!--
+        WARNING: DANGER, WILL ROBINSON! This test group will process every active
+        CollectionObject record available to the batch job.
+        
+        This may:
+        * Update existing data, not just test-created data.
+        * Take a very long time.
+    
+        Uncomment this test group, and add a line to a control file invoking it
+        only at your peril.  Use ONLY during development. - ADR 2013-01-10
+    -->
+    
+    <testGroup ID="invocationModeNoContextWithCrate" autoDeletePOSTS="false">
+        
+        <test ID="createBatchRecord" auth="pahma">
+            <method>POST</method>
+            <uri>/cspace-services/batch</uri>
+            <filename>batch/batch-create-updateobjloc-nocontext-with-crate.xml</filename>
+            <expectedCodes>201</expectedCodes>
+        </test>
+        
+        <test ID="invokeBatchWithNoContext" auth="pahma" autoDeletePOSTS="false">
+            <method>POST</method>
+            <uri>/cspace-services/batch/${createBatchRecord.CSID}</uri>
+            <filename>batch/batch-invoke-updateobjloc-nocontext.xml</filename>
+            <expectedCodes>200</expectedCodes>
+        </test>
+        
+    </testGroup>
+    
+</xmlReplay>
+
