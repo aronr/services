@@ -83,7 +83,7 @@
             * Verify that variable has been expanded in the imported record.
             * Verify that a server-side variable has also been expanded in the
               wrapper template for imported records; specifically, that an
-              expected value is is present in the collectionspace_core part.
+              expected value is present in the collectionspace_core part.
             (See "Variables supported in expansion of request" in
             http://wiki.collectionspace.org/display/collectionspace/Imports+Service+Home)
         -->
@@ -115,6 +115,9 @@
                         <label>objectexit_common</label>
                     </part>
                 </parts>
+                <vars>
+                    <var ID="uriValue">/objectexit/${importObjectExitWithVarExpansion.recordCSID}</var>
+                </vars>
             </response>
         </test>
         <test ID="deleteObjectExitWithVarExpansion">
