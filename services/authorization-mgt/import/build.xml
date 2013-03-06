@@ -1,4 +1,3 @@
-
 <project name="authorization-mgt.import" default="package" basedir=".">
     <description>
         collectionspace authorization-mgt import
