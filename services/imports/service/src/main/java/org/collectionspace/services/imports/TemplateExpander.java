@@ -31,8 +31,6 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import org.collectionspace.services.common.IFragmentHandler;
-import org.collectionspace.services.common.ResourceBase;
-import org.collectionspace.services.common.ResourceMap;
 import org.collectionspace.services.common.ServiceMain;
 import org.collectionspace.services.common.StoredValuesUriTemplate;
 import org.collectionspace.services.common.UriTemplateFactory;
@@ -47,7 +45,6 @@ import org.collectionspace.services.nuxeo.util.NuxeoUtils;
 import org.dom4j.Attribute;
 import org.dom4j.Document;
 import org.dom4j.Element;
-import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.InputSource;
@@ -165,6 +162,7 @@ public class TemplateExpander {
                 getDocUri(tenantId, SERVICE_TYPE, docID, partTmpl));
         wrapperTmpl = Tools.searchAndReplace(wrapperTmpl, var("refName"),
                 getRefName(tenantId, SERVICE_TYPE, docID, partTmpl));
+
 
         String serviceDir = outDir + '/' + docID;
         FileTools.saveFile(serviceDir, "document.xml", wrapperTmpl, FileTools.FORCE_CREATE_PARENT_DIRS);
@@ -309,13 +307,13 @@ public class TemplateExpander {
         // DocumentModelHandler.getRefName()
         // RemoteDocumentModelHandlerImpl.getRefnameDisplayName()
         //
-        // both of which are either invoked or overridden for authority and authority
-        // item records in these classes in the authority module:
+        // For authority and authority item records, the methods above are either
+        // invoked or overridden in these classes in the 'authority' module:
         //
         // AuthorityDocumentModelHandler
         // AuthorityItemDocumentModelHandler
         //
-        // These generally take a service context and a DocumentModel;
+        // These methods generally take a service context and a DocumentModel;
         // we likely have neither here.
         return refName;
     }
