@@ -44,6 +44,8 @@ import org.collectionspace.services.common.api.RefName;
 import org.collectionspace.services.common.api.RefName.RefNameInterface;
 import org.collectionspace.services.common.api.Tools;
 import org.collectionspace.services.common.config.TenantBindingConfigReaderImpl;
+import org.collectionspace.services.config.service.DocHandlerParams;
+import org.collectionspace.services.config.service.ListResultField;
 import org.collectionspace.services.config.service.ServiceBindingType;
 import org.collectionspace.services.config.tenant.TenantBindingType;
 import org.collectionspace.services.nuxeo.util.NuxeoUtils;
@@ -74,6 +76,8 @@ public class TemplateExpander {
     // non-namespace-qualified elements.
     private static final String IN_AUTHORITY_NAMESPACE_XPATH = "//*[local-name()='inAuthority']";
     private static final String IN_AUTHORITY_NO_NAMESPACE_XPATH = "//inAuthority";
+    private static final String REFNAME_NAMESPACE_XPATH = "//*[local-name()='refName']";
+    private static final String REFNAME_NO_NAMESPACE_XPATH = "//refName]";
     private static final String SERVICE_ATTRIBUTE = "service";
     private static final String TYPE_ATTRIBUTE = "type";
     private static final String CREATED_AT_ATTRIBUTE = "createdAt";
@@ -279,6 +283,19 @@ public class TemplateExpander {
         return inAuthorityValue;
     }
 
+    private static String getRefNameValue(String xmlFragment) {
+        String refNameValue = "";
+        // Check in two ways for the inAuthority value: one intended for records with
+        // namespace-qualified elements, the second for unqualified elements.
+        // (There may be a more elegant way to do this with a single XPath expression,
+        // via an OR operator or the like.)
+        refNameValue = extractValueFromXmlFragment(REFNAME_NAMESPACE_XPATH, xmlFragment);
+        if (Tools.isBlank(refNameValue)) {
+            refNameValue = extractValueFromXmlFragment(REFNAME_NO_NAMESPACE_XPATH, xmlFragment);
+        }
+        return refNameValue;
+    }
+
     // FIXME: Need to handle cases here where the xmlFragment may contain more
     // than one matching expression. (Simply matching on instance [0] within
     // the XPath expression might not be reasonable, as it won't always be
@@ -286,8 +303,9 @@ public class TemplateExpander {
     private static String extractValueFromXmlFragment(String xpathExpr, String xmlFragment) {
         String value = "";
         try {
-            // FIXME: Cruelly ugly hack; at this point for imported records
-            // with more than one <schema> child, we have a non-well-formed fragment.
+            // FIXME: This '<root>' wrapper is a crudely ugly hack; it is
+            // added because, at this point for imported records with more
+            // than one <schema> child, we have a non-well-formed fragment.
             String xmlFragmentWrapped = "<root>" + xmlFragment + "</root>";
             InputSource input = new InputSource(new StringReader(xmlFragmentWrapped));
             value = xpath.evaluate(xpathExpr, input);
@@ -307,6 +325,8 @@ public class TemplateExpander {
     }
 
     private static String getRefName(String tenantId, String serviceType, String docID, String partTmpl) {
+        String refName = "";
+        String refNameDisplayName = "";
         // In the framework's current document handler classes, refNames are
         // generated via these classes/methods in the common (nuxeo.client) module:
         //
@@ -321,11 +341,46 @@ public class TemplateExpander {
         //
         // These methods generally take a service context and a DocumentModel;
         // we likely have neither here.
-        String refnameDisplayName = "";
+
+        // Pseudo-code:
+
+        // If a valid refName value is provided within the imported record,
+        // use that value
+        refName = getRefNameValue(partTmpl);
+        if (Tools.notBlank(refName)) {
+            // FIXME Validate the provided refName by attempting to parse it   
+            return refName.toString();
+        }
+
+        // If no refName value was provided, generate one:
+
+        // For authority records:
+        // RefName.Authority authority = RefName.Authority.buildAuthority(getTenantName(tenantId),
+        //        getServiceName(tenantId, serviceType),
+        //                null,	// Only use short identifier form
+        //                getShortIdentifier(partTmpl),
+        //                displayName);
+        //                refname = authority;
+        //                 return refname.toString();
+
+        // For authority item records:
+        // refname = RefName.buildAuthorityItem(parentsRefName, shortIdentifier, displayName);
+
+        // For all other record types
+        //
+        // If this service supports hierarchy, get the refName display name from
+        // the appropriate field in the record, so it can be added to the refName
+        if (serviceSupportsHierarchy(tenantId, serviceType)) {
+            String displayNameFieldXpath = getRefNameDisplayNameXpath(tenantId, serviceType);
+            refNameDisplayName = extractValueFromXmlFragment(displayNameFieldXpath, partTmpl);
+        }
+        // Generate a 'plain ID' form of refName
         RefName.RefNameInterface refname =
                 RefName.Authority.buildAuthority(getTenantName(tenantId),
-                getServiceName(tenantId, serviceType), docID, null, refnameDisplayName);
-        return refname.toString();
+                getServiceName(tenantId, serviceType), docID, null, refNameDisplayName);
+        refName = refname.toString();
+
+        return refName;
     }
 
     private static String getTenantName(String tenantId) {
@@ -336,6 +391,19 @@ public class TemplateExpander {
     private static String getServiceName(String tenantId, String serviceType) {
         ServiceBindingType serviceBinding = tReader.getServiceBindingForDocType(tenantId, serviceType);
         return serviceBinding.getName();
+    }
+
+    private static boolean serviceSupportsHierarchy(String tenantId, String serviceType) {
+        ServiceBindingType serviceBinding = tReader.getServiceBindingForDocType(tenantId, serviceType);
+        DocHandlerParams params = serviceBinding.getDocHandlerParams();
+        return params.getParams().isSupportsHierarchy();
+    }
+
+    private static String getRefNameDisplayNameXpath(String tenantId, String serviceType) {
+        ServiceBindingType serviceBinding = tReader.getServiceBindingForDocType(tenantId, serviceType);
+        DocHandlerParams params = serviceBinding.getDocHandlerParams();
+        ListResultField displayNameField = params.getParams().getRefnameDisplayNameField();
+        return displayNameField.getXpath();
     }
 
     /**
