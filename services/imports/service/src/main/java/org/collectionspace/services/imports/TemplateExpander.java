@@ -40,7 +40,12 @@ import org.collectionspace.services.common.XmlSaxFragmenter;
 import org.collectionspace.services.common.XmlTools;
 import org.collectionspace.services.common.api.FileTools;
 import org.collectionspace.services.common.api.GregorianCalendarDateTimeUtils;
+import org.collectionspace.services.common.api.RefName;
+import org.collectionspace.services.common.api.RefName.RefNameInterface;
 import org.collectionspace.services.common.api.Tools;
+import org.collectionspace.services.common.config.TenantBindingConfigReaderImpl;
+import org.collectionspace.services.config.service.ServiceBindingType;
+import org.collectionspace.services.config.tenant.TenantBindingType;
 import org.collectionspace.services.nuxeo.util.NuxeoUtils;
 import org.dom4j.Attribute;
 import org.dom4j.Document;
@@ -75,6 +80,8 @@ public class TemplateExpander {
     private static final String CREATED_BY_ATTRIBUTE = "createdBy";
     private static final String UPDATED_AT_ATTRIBUTE = "updatedAt";
     private static final String UPDATED_BY_ATTRIBUTE = "updatedBy";
+    private static TenantBindingConfigReaderImpl tReader =
+            ServiceMain.getInstance().getTenantBindingConfigReader();
 
     protected static String var(String theVar) {
         return "\\$\\{" + theVar + "\\}";
@@ -300,7 +307,6 @@ public class TemplateExpander {
     }
 
     private static String getRefName(String tenantId, String serviceType, String docID, String partTmpl) {
-        String refName = "";
         // In the framework's current document handler classes, refNames are
         // generated via these classes/methods in the common (nuxeo.client) module:
         //
@@ -315,7 +321,21 @@ public class TemplateExpander {
         //
         // These methods generally take a service context and a DocumentModel;
         // we likely have neither here.
-        return refName;
+        String refnameDisplayName = "";
+        RefName.RefNameInterface refname =
+                RefName.Authority.buildAuthority(getTenantName(tenantId),
+                getServiceName(tenantId, serviceType), docID, null, refnameDisplayName);
+        return refname.toString();
+    }
+
+    private static String getTenantName(String tenantId) {
+        TenantBindingType tenantBinding = tReader.getTenantBinding(tenantId);
+        return tenantBinding.getName();
+    }
+
+    private static String getServiceName(String tenantId, String serviceType) {
+        ServiceBindingType serviceBinding = tReader.getServiceBindingForDocType(tenantId, serviceType);
+        return serviceBinding.getName();
     }
 
     /**
