@@ -272,7 +272,7 @@ public class TemplateExpander {
     // - ADR 2012-05-24
     private static String getInAuthorityValue(String xmlFragment) {
         String inAuthorityValue = "";
-        // Check in two ways for the inAuthority value: one intended for records with
+        // Check for the inAuthority value in two ways: one intended for records with
         // namespace-qualified elements, the second for unqualified elements.
         // (There may be a more elegant way to do this with a single XPath expression,
         // via an OR operator or the like.)
@@ -285,7 +285,7 @@ public class TemplateExpander {
 
     private static String getRefNameValue(String xmlFragment) {
         String refNameValue = "";
-        // Check in two ways for the inAuthority value: one intended for records with
+        // Check for the refName value in two ways: one intended for records with
         // namespace-qualified elements, the second for unqualified elements.
         // (There may be a more elegant way to do this with a single XPath expression,
         // via an OR operator or the like.)
@@ -303,9 +303,9 @@ public class TemplateExpander {
     private static String extractValueFromXmlFragment(String xpathExpr, String xmlFragment) {
         String value = "";
         try {
-            // FIXME: This '<root>' wrapper is a crudely ugly hack; it is
-            // added because, at this point for imported records with more
-            // than one <schema> child, we have a non-well-formed fragment.
+            // FIXME: This '<root>' wrapper is a crudely ugly hack; it has been
+            // added because, at this point when handling imported records with
+            // more than one <schema> child, we have only a non-well-formed fragment.
             String xmlFragmentWrapped = "<root>" + xmlFragment + "</root>";
             InputSource input = new InputSource(new StringReader(xmlFragmentWrapped));
             value = xpath.evaluate(xpathExpr, input);
@@ -403,7 +403,12 @@ public class TemplateExpander {
         ServiceBindingType serviceBinding = tReader.getServiceBindingForDocType(tenantId, serviceType);
         DocHandlerParams params = serviceBinding.getDocHandlerParams();
         ListResultField displayNameField = params.getParams().getRefnameDisplayNameField();
-        return displayNameField.getXpath();
+        // Based on the two sample Xpath values for the RefnameDisplayNameField
+        // value, it appears these values require prefacing with the 'double slash'
+        // abbreviation, signifying the axis that selects all matching descendants
+        // of the document root. If that assumption proves incorrect in the future,
+        // we will need to revise this line. - ADR 2013-03-07
+        return "//" + displayNameField.getXpath();
     }
 
     /**
