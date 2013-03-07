@@ -117,6 +117,7 @@
                 </parts>
                 <vars>
                     <var ID="uriValue">/objectexit/${importObjectExitWithVarExpansion.recordCSID}</var>
+                    <var ID="refNameValue">urn:cspace:core.collectionspace.org:objectexit:id(${importObjectExitWithVarExpansion.recordCSID})</var>
                 </vars>
             </response>
         </test>

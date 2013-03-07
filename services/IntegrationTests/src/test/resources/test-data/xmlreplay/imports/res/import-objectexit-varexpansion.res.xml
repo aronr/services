@@ -9,6 +9,7 @@
         <!-- Note: This test may fail if the identifier for the core tenant changes. -->
         <tenantId>1</tenantId>
         <uri>${uriValue}</uri>
+        <refName>${refNameValue}</refName>
     </ns2:collectionspace_core>
 </document>
 
