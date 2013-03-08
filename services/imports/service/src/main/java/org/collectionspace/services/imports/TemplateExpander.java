@@ -327,22 +327,6 @@ public class TemplateExpander {
     private static String getRefName(String tenantId, String serviceType, String docID, String partTmpl) {
         String refName = "";
         String refNameDisplayName = "";
-        // In the framework's current document handler classes, refNames are
-        // generated via these classes/methods in the common (nuxeo.client) module:
-        //
-        // DocumentModelHandler.getRefName()
-        // RemoteDocumentModelHandlerImpl.getRefnameDisplayName()
-        //
-        // For authority and authority item records, the methods above are either
-        // invoked or overridden in these classes in the 'authority' module:
-        //
-        // AuthorityDocumentModelHandler
-        // AuthorityItemDocumentModelHandler
-        //
-        // These methods generally take a service context and a DocumentModel;
-        // we likely have neither here.
-
-        // Pseudo-code:
 
         // If a valid refName value is provided within the imported record,
         // use that value
@@ -351,23 +335,11 @@ public class TemplateExpander {
             // FIXME Validate the provided refName by attempting to parse it   
             return refName.toString();
         }
+        
+        // Note: if there proves a need to automatically generate short
+        // identifier-style refNames for authority and authority item records,
+        // that code should be inserted here.
 
-        // If no refName value was provided, generate one:
-
-        // For authority records:
-        // RefName.Authority authority = RefName.Authority.buildAuthority(getTenantName(tenantId),
-        //        getServiceName(tenantId, serviceType),
-        //                null,	// Only use short identifier form
-        //                getShortIdentifier(partTmpl),
-        //                displayName);
-        //                refname = authority;
-        //                 return refname.toString();
-
-        // For authority item records:
-        // refname = RefName.buildAuthorityItem(parentsRefName, shortIdentifier, displayName);
-
-        // For all other record types
-        //
         // If this service supports hierarchy, get the refName display name from
         // the appropriate field in the record, so it can be added to the refName
         if (serviceSupportsHierarchy(tenantId, serviceType)) {
