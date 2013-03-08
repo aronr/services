@@ -131,6 +131,7 @@
         <!-- Verify that the refName generated for an object or procedural record -->
         <!-- in a service supporting hierarchy includes a display name, derived -->
         <!-- from the value of a specific, designated field in that record. -->
+        <!-- Verify that this value is present, as well, in the collectionspace_core part. --> 
         <test ID="importCollectionObjectWithVarExpansion">
             <expectedCodes>200</expectedCodes>
             <method>POST</method>
@@ -166,7 +167,7 @@
                     <!-- Note: This test may fail if the RefnameDisplayNameField for -->
                     <!-- CollectionObject records, in the core tenant, changes to a -->
                     <!-- field other than objectNumber. -->
-                    <var ID="refNameValue">urn:cspace:core.collectionspace.org:collectionobjects:id(${importObjectExitWithVarExpansion.recordCSID})'${importCollectionObjectWithVarExpansion.objectNumberValue}'</var>
+                    <var ID="refNameValue">urn:cspace:core.collectionspace.org:collectionobjects:id(${importCollectionObjectWithVarExpansion.recordCSID})'${importCollectionObjectWithVarExpansion.objectNumberValue}'</var>
                 </vars>
             </response>
         </test>
@@ -176,6 +177,52 @@
             <uri>/cspace-services/collectionobjects/${importCollectionObjectWithVarExpansion.recordCSID}</uri>
         </test>
         
+                
+        <!-- Verify that a refName value provided in the body of an authority record -->
+        <!-- is made present, as well, in the collectionspace_core part's refName field. -->
+        <test ID="importLocationAuthorityWithVarExpansion">
+            <expectedCodes>200</expectedCodes>
+            <method>POST</method>
+            <uri>/cspace-services/imports</uri>
+            <filename>imports/import-locationauthority-varexpansion.xml</filename>
+            <vars>
+                <var ID="recordCSID">88b7753c-f63b-4254-80a2-4dfcb3342c63</var>
+                <var ID="displayNameValue">Outbuilding Locations</var>
+                <var ID="shortIdentifierValue">outbuildinglocations</var>
+                <var ID="refNameValue">urn:cspace:core.collectionspace.org:locationauthorities:name(outbuildinglocations)'Outbuilding Locations'</var>
+            </vars>
+            <response>
+                <expected level="TEXT" />
+                <filename>imports/res/import-locationauthority.res.xml</filename>
+            </response>
+        </test>
+        <test ID="verifyLocationAuthorityWithVarExpansion">
+            <expectedCodes>200</expectedCodes>
+            <method>GET</method>
+            <uri>/cspace-services/locationauthorities/${importLocationAuthorityWithVarExpansion.recordCSID}</uri>
+            <response>
+                <filename>imports/res/import-locationauthority-varexpansion.res.xml</filename>
+                <expected level="ADDOK" />
+                <parts>
+                    <part>
+                        <label>collectionspace_core</label>
+                    </part>
+                    <part>
+                        <label>locationauthorities_common</label>
+                    </part>
+                </parts>
+                <vars>
+                    <var ID="uriValue">/locationauthorities/${importLocationAuthorityWithVarExpansion.recordCSID}</var>
+                    <var ID="refNameValue">${importLocationAuthorityWithVarExpansion.refNameValue}</var>
+                </vars>
+            </response>
+        </test>
+        <test ID="deleteLocationAuthorityWithVarExpansion">
+            <expectedCodes>200</expectedCodes>
+            <method>DELETE</method>
+            <uri>/cspace-services/locationauthorities/${importLocationAuthorityWithVarExpansion.recordCSID}</uri>
+        </test>
+                
         <!--
             Import a record containing dollar sign and backslash character(s).
             (See CSPACE-3917.) 

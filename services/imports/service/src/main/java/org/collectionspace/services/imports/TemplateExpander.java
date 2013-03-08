@@ -396,19 +396,36 @@ public class TemplateExpander {
     private static boolean serviceSupportsHierarchy(String tenantId, String serviceType) {
         ServiceBindingType serviceBinding = tReader.getServiceBindingForDocType(tenantId, serviceType);
         DocHandlerParams params = serviceBinding.getDocHandlerParams();
-        return params.getParams().isSupportsHierarchy();
+        if (params == null || params.getParams() == null || params.getParams().isSupportsHierarchy() == null) {
+            return false;
+        } else {
+            return params.getParams().isSupportsHierarchy();
+        }
     }
 
     private static String getRefNameDisplayNameXpath(String tenantId, String serviceType) {
+        String displayNameXPath = "";
         ServiceBindingType serviceBinding = tReader.getServiceBindingForDocType(tenantId, serviceType);
         DocHandlerParams params = serviceBinding.getDocHandlerParams();
+        if (params == null || params.getParams() == null) {
+            return displayNameXPath;
+        }
         ListResultField displayNameField = params.getParams().getRefnameDisplayNameField();
+        if (displayNameField == null) {
+            return displayNameXPath;
+
+        }
         // Based on the two sample Xpath values for the RefnameDisplayNameField
         // value, it appears these values require prefacing with the 'double slash'
         // abbreviation, signifying the axis that selects all matching descendants
         // of the document root. If that assumption proves incorrect in the future,
         // we will need to revise this line. - ADR 2013-03-07
-        return "//" + displayNameField.getXpath();
+        if (Tools.isBlank(displayNameField.getXpath())) {
+            return displayNameXPath;
+        } else {
+            displayNameXPath = "//" + displayNameField.getXpath();
+        }
+        return displayNameXPath;
     }
 
     /**
