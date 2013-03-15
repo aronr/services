@@ -162,4 +162,8 @@ public class GregorianCalendarDateTimeUtils {
         formattedDate = df.format(date);
         return formattedDate;
     }    
+
+    public static String formatAsISO8601Datestamp(GregorianCalendar gcal) {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
 }

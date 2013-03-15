@@ -36,6 +36,7 @@ import java.text.FieldPosition;
 import java.text.NumberFormat;
 
 import java.util.ArrayList;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -53,8 +54,10 @@ import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.TransformerConfigurationException; 
 import javax.xml.transform.TransformerException; 
+import org.collectionspace.services.client.CollectionSpaceClient;
 
 import org.collectionspace.services.common.ServiceMain;
+import org.collectionspace.services.common.api.GregorianCalendarDateTimeUtils;
 import org.collectionspace.services.common.context.ServiceContext;
 import org.collectionspace.services.common.datetime.DateTimeFormatUtils;
 import org.collectionspace.services.config.service.ObjectPartContentType;
@@ -127,9 +130,9 @@ public class DocumentUtils {
 
 	/** The XML elements with this suffix will indicate. */
 	private static String STRUCTURED_TYPE_SUFFIX = "List";
+
+
        
-
-
 	/**
 	 * The Class NameValue.
 	 */
@@ -570,22 +573,22 @@ public class DocumentUtils {
 				if(field==null) {
 					field = new FieldImpl(new QName(prop), schema, StringType.INSTANCE);
 				}
-				buildProperty(document, parent, field, value);
+				buildProperty(document, parent, field, value, schema);
 			}
 		}
 	}
 
 	/**
-	 * Builds the property.
-	 *
-	 * @param document the document
-	 * @param parent the parent
-	 * @param field the field
-	 * @param dateVal the dateVal
-	 * @throws IOException Signals that an I/O exception has occurred.
-	 */
-	private static void buildProperty(Document document, Element parent, 
-            Field field, Object value) throws IOException {
+     * Builds the property.
+     *
+     * @param document the document
+     * @param parent the parent
+     * @param field the field
+     * @param schema the value of schema
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
+    
+	private static void buildProperty(Document document, Element parent, Field field, Object value, Schema schema) throws IOException {
             Type type = field.getType(); 
            //no need to qualify each element name as namespace is already added
             String propName = field.getName().getLocalName();
@@ -593,23 +596,18 @@ public class DocumentUtils {
             parent.appendChild(element);
             // extract the element content
             if (type.isSimpleType()) {
+                // Uniformly format all decimal values
                 if (isNuxeoDecimalType(type) && valueMatchesNuxeoType(type, value)) {
                     element.setTextContent(nuxeoDecimalValueToDecimalString(value));
-               /*
-                * We need a way to produce just a Date when the specified data
-                * type is an xs:date vs. xs:datetime. Nuxeo maps both to a Calendar. Sigh.
-                if(logger.isTraceEnabled() && isDateType(type)) {
-                    String dateValType = "unknown";
-                    if (value instanceof java.util.Date) {
-                        dateValType = "java.util.Date";
-                    } else if (value instanceof java.util.Calendar) {
-                        dateValType = "java.util.Calendar";
+                    // Uniformly format nearly all date values as dates without timestamps,
+                    // outside of a set of exceptions for specified schemas and fields
+                    // which are to be formatted as dates with timestamps
+                } else if (isNuxeoDateType(type) && ! isDateFieldWithTimestamp(field)) {
+                    GregorianCalendar gcal = (GregorianCalendar) value;
+                    if (gcal != null) {
+                        String dateStr = GregorianCalendarDateTimeUtils.formatAsISO8601Date(gcal);
+                        element.setTextContent(dateStr);
                     }
-                    logger.trace("building XML for date type: "+type.getName()
-                            +" value type: "+dateValType
-                            +" encoded: "+encodedVal);
-                }
-                */
                 } else {
                     String encodedVal = type.encode(value);
                     element.setTextContent(encodedVal);
@@ -652,7 +650,7 @@ public class DocumentUtils {
 			Map.Entry entry = it.next();
 			String propName = entry.getKey().toString();
 			buildProperty(document, element, 
-					ctype.getField(propName), entry.getValue());
+					ctype.getField(propName), entry.getValue(), null);
 		}
 	}
 
@@ -669,7 +667,7 @@ public class DocumentUtils {
 			ListType ltype, List list) throws IOException {
 		Field field = ltype.getField();
 		for (Object obj : list) {
-			buildProperty(document, element, field, obj);
+			buildProperty(document, element, field, obj, null);
 		}
 	}
 
@@ -872,7 +870,7 @@ public class DocumentUtils {
 		return isComplex;
 	}
         
-        /*
+        /**
          * Identifies whether a property type is a Nuxeo decimal type.
          * 
          * Note: currently, elements declared as xs:decimal in XSD schemas
@@ -887,7 +885,7 @@ public class DocumentUtils {
             return ((SimpleType)type).getPrimitiveType() instanceof DoubleType;
         }
         
-        /*
+        /**
          * Returns a string representation of the value of a Nuxeo decimal type.
          * 
          * Note: currently, elements declared as xs:decimal in XSD schemas
@@ -912,7 +910,7 @@ public class DocumentUtils {
             // use the decimal separator and other numeric formatting conventions
             // for the current default Locale.  In some Locales, this could
             // potentially result in returning values that might not be capable
-            // of being round-tripped; this should be invetigated. Alternately,
+            // of being round-tripped; this should be investigated. Alternately,
             // we might standardize on a particular locale whose values are known
             // to be capable of also being ingested on return. - ADR 2012-08-07
             NumberFormat formatter = NumberFormat.getInstance();
@@ -924,7 +922,7 @@ public class DocumentUtils {
             return formatter.format(doubleVal.doubleValue());
        }
 
-        /*
+        /**
          * Identifies whether a property type is a date type.
          *
          * @param type   a type.
@@ -933,6 +931,26 @@ public class DocumentUtils {
          */
         private static boolean isNuxeoDateType(Type type) {
             return ((SimpleType)type).getPrimitiveType() instanceof DateType;
+        }
+        
+        /**
+         * Identifies whether a field is a date field with timestamp.
+         *
+         * @param field  a field.
+	 * @return       true, if is a date field whose values include a timestamp;
+         *               false, if it is not a date field or, if it is a date field,
+         *               its values do not include a timestamp.
+         */
+        private static boolean isDateFieldWithTimestamp(Field field) {
+            if (!isNuxeoDateType(field.getType())) {
+                return false;
+            }
+            // getPrefix() returns a schema label
+            if (field.getName().getPrefix().equalsIgnoreCase(CollectionSpaceClient.COLLECTIONSPACE_CORE_SCHEMA)) {
+                return true;
+            } else {
+                return false;
+            }
         }
                 
         private static boolean valueMatchesNuxeoType(Type type, Object value) {
