@@ -573,7 +573,7 @@ public class DocumentUtils {
 				if(field==null) {
 					field = new FieldImpl(new QName(prop), schema, StringType.INSTANCE);
 				}
-				buildProperty(document, parent, field, value, schema);
+				buildProperty(document, parent, field, value);
 			}
 		}
 	}
@@ -588,7 +588,7 @@ public class DocumentUtils {
      * @throws IOException Signals that an I/O exception has occurred.
      */
     
-	private static void buildProperty(Document document, Element parent, Field field, Object value, Schema schema) throws IOException {
+	private static void buildProperty(Document document, Element parent, Field field, Object value) throws IOException {
             Type type = field.getType(); 
            //no need to qualify each element name as namespace is already added
             String propName = field.getName().getLocalName();
@@ -650,7 +650,7 @@ public class DocumentUtils {
 			Map.Entry entry = it.next();
 			String propName = entry.getKey().toString();
 			buildProperty(document, element, 
-					ctype.getField(propName), entry.getValue(), null);
+					ctype.getField(propName), entry.getValue());
 		}
 	}
 
@@ -667,7 +667,7 @@ public class DocumentUtils {
 			ListType ltype, List list) throws IOException {
 		Field field = ltype.getField();
 		for (Object obj : list) {
-			buildProperty(document, element, field, obj, null);
+			buildProperty(document, element, field, obj);
 		}
 	}
 
