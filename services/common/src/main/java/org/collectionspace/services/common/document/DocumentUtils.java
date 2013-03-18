@@ -32,7 +32,6 @@ import java.io.OutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.StringWriter;
 import java.text.DecimalFormat;
-import java.text.FieldPosition;
 import java.text.NumberFormat;
 
 import java.util.ArrayList;
@@ -58,6 +57,7 @@ import org.collectionspace.services.client.CollectionSpaceClient;
 
 import org.collectionspace.services.common.ServiceMain;
 import org.collectionspace.services.common.api.GregorianCalendarDateTimeUtils;
+import org.collectionspace.services.common.api.Tools;
 import org.collectionspace.services.common.context.ServiceContext;
 import org.collectionspace.services.common.datetime.DateTimeFormatUtils;
 import org.collectionspace.services.config.service.ObjectPartContentType;
@@ -96,7 +96,6 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.w3c.dom.Text;
 
 //import org.dom4j.Document;
 //import org.dom4j.Element;
@@ -130,6 +129,39 @@ public class DocumentUtils {
 
 	/** The XML elements with this suffix will indicate. */
 	private static String STRUCTURED_TYPE_SUFFIX = "List";
+
+
+    private static Object extractDateValue(org.dom4j.Element element, Type type, ServiceContext ctx)
+            throws IllegalArgumentException {
+        String dateStr;
+        Object result;
+        String dateVal = element.getText();
+        if (dateVal == null || dateVal.trim().isEmpty()) {
+            result = type.decode("");
+        } else {
+            // Dates or date/times in any ISO 8601-based representations
+            // directly supported by Nuxeo will be successfully decoded.
+            result = type.decode(dateVal);
+            // All other date or date/time values must first be converted
+            // to a supported ISO 8601-based representation.
+            if (result == null) {
+                if (stamp(element)) {
+                    dateStr = DateTimeFormatUtils.toIso8601Timestamp(dateVal,
+                        ctx.getTenantId());
+                } else {
+                    dateStr = DateTimeFormatUtils.toIso8601Date(dateVal,
+                        ctx.getTenantId());
+                }
+                if (dateStr != null) {
+                    result = type.decode(dateStr);
+                } else {
+                    throw new IllegalArgumentException("Unrecognized date value '"
+                            + dateVal + "' in field '" + element.getName() + "'");
+                }
+            }
+        }
+        return result;
+    }
 
 
        
@@ -602,7 +634,7 @@ public class DocumentUtils {
                     // Uniformly format nearly all date values as dates without timestamps,
                     // outside of a set of exceptions for specified schemas and fields
                     // which are to be formatted as dates with timestamps
-                } else if (isNuxeoDateType(type) && ! isDateFieldWithTimestamp(field)) {
+                } else if (isNuxeoDateType(type) && ! hasTimestamp(field)) {
                     GregorianCalendar gcal = (GregorianCalendar) value;
                     if (gcal != null) {
                         String dateStr = GregorianCalendarDateTimeUtils.formatAsISO8601Date(gcal);
@@ -941,18 +973,28 @@ public class DocumentUtils {
          *               false, if it is not a date field or, if it is a date field,
          *               its values do not include a timestamp.
          */
-        private static boolean isDateFieldWithTimestamp(Field field) {
+        private static boolean hasTimestamp(Field field) {
             if (!isNuxeoDateType(field.getType())) {
                 return false;
             }
-            // getPrefix() returns a schema label
-            if (field.getName().getPrefix().equalsIgnoreCase(CollectionSpaceClient.COLLECTIONSPACE_CORE_SCHEMA)) {
-                return true;
-            } else {
-                return false;
-            }
+            return hasTimestamp(field.getName().getPrefix(), field.getName().getLocalName());
         }
-                
+        
+        private static boolean hasTimestamp(org.dom4j.Element element) {
+            boolean hasTimestamp = false;
+            // FIXME: Add implementing code here to replace this now-stub ...
+            return hasTimestamp;
+        }
+        
+        private static boolean hasTimestamp(String schemaLabel, String fieldName) {
+            boolean hasTimestamp = false;
+            if (Tools.notBlank(fieldName)
+                && schemaLabel.equalsIgnoreCase(CollectionSpaceClient.COLLECTIONSPACE_CORE_SCHEMA)) {
+                hasTimestamp = true;
+            }
+            return hasTimestamp;
+        }
+                        
         private static boolean valueMatchesNuxeoType(Type type, Object value) {
             try {
                 return type.validate(value);
@@ -1271,26 +1313,7 @@ public class DocumentUtils {
 		
 		if (type.isSimpleType()) {
                         if (isNuxeoDateType(type)) {
-                            String dateVal = element.getText();
-                            if (dateVal == null || dateVal.trim().isEmpty()) {
-                                result = type.decode("");
-                            } else {
-                                // Dates or date/times in any ISO 8601-based representations
-                                // directly supported by Nuxeo will be successfully decoded.
-                                result = type.decode(dateVal);
-                                // All other date or date/time values must first be converted
-                                // to a supported ISO 8601-based representation.
-                                if (result == null) {
-                                    dateStr = DateTimeFormatUtils.toIso8601Timestamp(dateVal,
-                                            ctx.getTenantId());
-                                    if (dateStr != null) {
-                                        result = type.decode(dateStr);
-                                    } else {
-                                        throw new IllegalArgumentException("Unrecognized date value '"
-                                                + dateVal + "' in field '" + element.getName() + "'");
-                                    }
-                                }
-                            }
+                            result = extractDateValue(element, type, ctx);
                         } else {
                             String textValue = element.getText();
                             if (textValue != null && textValue.trim().isEmpty()) {

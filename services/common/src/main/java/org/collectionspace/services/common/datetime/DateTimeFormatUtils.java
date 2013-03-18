@@ -305,7 +305,7 @@ public class DateTimeFormatUtils {
      * in sequence, to attempt to parse the string, and returns the timestamp
      * resulting from the first successful parse attempt.
      *
-     * @param str       a String, possibly a date or date/time String.
+     * @param dateStr   a String, possibly a date or date/time String.
      * @param tenantId  a tenant ID.
      *
      * @return          an ISO 8601 timestamp representation of that String.
@@ -313,14 +313,7 @@ public class DateTimeFormatUtils {
      *                  for the supplied tenant, return null;
      */
     public static String toIso8601Timestamp(String dateStr, String tenantId) {
-        Date date = null;
-        List<DateFormat> formatters = getDateFormattersForTenant(tenantId);
-        for (DateFormat formatter : formatters) {
-            date = DateUtils.parseDate(dateStr, formatter);
-            if (date != null) {
-                break;
-            }
-        }
+        Date date = parseUsingDateFormatters(tenantId, dateStr);
         if (date == null) {
             return null;
         } else {
@@ -330,4 +323,56 @@ public class DateTimeFormatUtils {
             return isoStr;
         }
     }
+    
+    /**
+     * Returns an ISO 8601 date-only representation of a presumptive date or
+     * date/time string.
+     *
+     * @param dateStr   a String, possibly a date or date/time String.
+     * @param tenantId  a tenant ID.
+     *
+     * @return          an ISO 8601 date-only representation of that String.
+     *                  If the String cannot be parsed by the date formatters
+     *                  for the supplied tenant, return null;
+     */
+    public static String toIso8601Date(String dateStr, String tenantId) {
+        Date date = parseUsingDateFormatters(tenantId, dateStr);
+        if (date == null) {
+            return null;
+        } else {
+            GregorianCalendar gcal = new GregorianCalendar();
+            gcal.setTime(date);
+            String isoStr = GregorianCalendarDateTimeUtils.formatAsISO8601Date(gcal);
+            return isoStr;
+        }
+    }
+
+    /**
+     * Attempt to parse a presumptive date string using the set of date formatters
+     * for a tenant.
+     *
+     * @param dateStr   a String, possibly a date or date/time String.
+     * @param tenantId  a tenant ID.
+     *
+     * @return          a Date representation of that String.
+     *                  If the String cannot be parsed by the date formatters
+     *                  for the supplied tenant, return null;
+     */
+    private static Date parseUsingDateFormatters(String tenantId, String dateStr) {
+        Date date = null;
+        // Apply the set of date formatters for a supplied tenant
+        // in sequence, to attempt to parse a presumptive date string,
+        // and return the timestamp resulting from the first successful
+        // parse attempt, if any.
+        List<DateFormat> formatters = getDateFormattersForTenant(tenantId);
+        for (DateFormat formatter : formatters) {
+            date = DateUtils.parseDate(dateStr, formatter);
+            if (date != null) {
+                break;
+            }
+        }
+        return date;
+    }
+    
+    
 }
