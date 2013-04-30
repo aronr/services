@@ -3,6 +3,7 @@ package org.collectionspace.services.listener;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.Set;
+import org.collectionspace.services.client.Profiler;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.collectionspace.services.client.workflow.WorkflowClient;
@@ -13,12 +14,15 @@ import org.nuxeo.ecm.core.api.ClientException;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.DocumentModel;
 import org.nuxeo.ecm.core.api.DocumentModelList;
+import org.nuxeo.ecm.core.api.TransactionalCoreSessionWrapper;
 import org.nuxeo.ecm.core.event.Event;
+import org.nuxeo.ecm.core.event.EventBundle;
 import org.nuxeo.ecm.core.event.EventContext;
-import org.nuxeo.ecm.core.event.EventListener;
+import org.nuxeo.ecm.core.event.PostCommitEventListener;
 import org.nuxeo.ecm.core.event.impl.DocumentEventContext;
+import org.nuxeo.ecm.core.event.impl.EventBundleImpl;
 
-public abstract class AbstractUpdateObjectLocationValues implements EventListener {
+public abstract class AbstractUpdateObjectLocationValues implements PostCommitEventListener {
 
     // FIXME: We might experiment here with using log4j instead of Apache Commons Logging;
     // am using the latter to follow Ray's pattern for now
@@ -45,16 +49,39 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             + "AND ecm:isProxy = 0 "
             + "AND ecm:isCheckedInVersion = 0";
 
-    @Override
     public void handleEvent(Event event) throws ClientException {
-
         logger.trace("In handleEvent in UpdateObjectLocationOnMove ...");
+        EventBundle events = new EventBundleImpl();
+        events.push(event);
+        handleEvent(events);
+    }
+
+    @Override
+    public void handleEvent(EventBundle events) throws ClientException {
+
+        logger.info("In handleEvent(EventBundle) in UpdateObjectLocationOnMove ...");
+
+        if (events == null || events.isEmpty()) {
+            return;
+        }
+        if (events.size() != 1) {
+            if (logger.isInfoEnabled()) {
+                logger.info("Received " + events.size() + " events");
+            }
+            return;
+        }
+        Event event = events.iterator().next();
+        if (event == null) {
+            return;
+        }
+
+        Profiler profiler = new Profiler("", 2);
+        profiler.start();
 
         EventContext eventContext = event.getContext();
         if (eventContext == null) {
             return;
         }
-
         if (!(eventContext instanceof DocumentEventContext)) {
             return;
         }
@@ -121,6 +148,9 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             logger.trace("Movement CSID=" + movementCsid);
         }
 
+        profiler.stop();
+        logger.info("After getting the relevant Movement record: " + profiler.getCumulativeTime() + " ms");
+        profiler.start();
         // Find CollectionObject records that are related to this Movement record:
         //
         // Via an NXQL query, get a list of active relation records where:
@@ -130,6 +160,7 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
         // * This movement record's CSID is the object CSID of the relation,
         //   and its subject document type is a CollectionObject doctype.
         CoreSession coreSession = docEventContext.getCoreSession();
+        CoreSession wrappedCoreSession = TransactionalCoreSessionWrapper.wrap(coreSession);
         // Some values below are hard-coded for readability, rather than
         // being obtained from constants.
         String query = String.format(
@@ -143,17 +174,21 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
                 + ")"
                 + ACTIVE_DOCUMENT_WHERE_CLAUSE_FRAGMENT,
                 RELATION_DOCTYPE, RELATIONS_COMMON_SCHEMA, movementCsid, COLLECTIONOBJECT_DOCTYPE);
-        DocumentModelList relationDocModels = coreSession.query(query);
+        DocumentModelList relationDocModels = wrappedCoreSession.query(query);
         if (relationDocModels == null || relationDocModels.isEmpty()) {
             // Encountering a Movement record that is not related to any
             // CollectionObject is potentially a normal occurrence, so no
             // error messages are logged here when we stop handling this event.
             return;
         }
+        profiler.stop();
+        logger.info("After getting relations records: " + profiler.getCumulativeTime() + " ms");
+        profiler.start();
 
         // Iterate through the list of Relation records found and build
         // a list of CollectionObject CSIDs, by extracting the relevant CSIDs
         // from those Relation records.
+        profiler.start();
         String csid;
         Set<String> collectionObjectCsids = new HashSet<String>();
         for (DocumentModel relationDocModel : relationDocModels) {
@@ -171,7 +206,9 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
                 logger.trace("Found " + collectionObjectCsids.size() + " CSIDs of related CollectionObject records.");
             }
         }
-
+        profiler.stop();
+        logger.info("After cycling through list of relation records found: " + profiler.getCumulativeTime() + " ms");
+        profiler.start();
         // Iterate through the list of CollectionObject CSIDs found.
         // For each CollectionObject, obtain its most recent, related Movement,
         // and update relevant field(s) with values from that Movement record.
@@ -182,7 +219,7 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
                 logger.trace("CollectionObject CSID=" + collectionObjectCsid);
             }
             // Verify that the CollectionObject is retrievable.
-            collectionObjectDocModel = getDocModelFromCsid(coreSession, collectionObjectCsid);
+            collectionObjectDocModel = getDocModelFromCsid(wrappedCoreSession, collectionObjectCsid);
             if (collectionObjectDocModel == null) {
                 continue;
             }
@@ -190,16 +227,21 @@ public abstract class AbstractUpdateObjectLocationValues implements EventListene
             if (!isActiveDocument(collectionObjectDocModel)) {
                 continue;
             }
+
             // Get the CollectionObject's most recent, related Movement.
-            mostRecentMovementDocModel = getMostRecentMovement(coreSession, collectionObjectCsid);
+            mostRecentMovementDocModel = getMostRecentMovement(wrappedCoreSession, collectionObjectCsid);
             if (mostRecentMovementDocModel == null) {
                 continue;
             }
+
             // Update the CollectionObject with values from that Movement.
             collectionObjectDocModel =
                     updateCollectionObjectValuesFromMovement(collectionObjectDocModel, mostRecentMovementDocModel);
-            coreSession.saveDocument(collectionObjectDocModel);
+            wrappedCoreSession.saveDocument(collectionObjectDocModel);
         }
+        profiler.stop();
+        logger.info("After cycling through getMostRecentMovement: " + profiler.getCumulativeTime() + " ms");
+        profiler.reset();
 
     }
 
