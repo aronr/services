@@ -1,7 +1,9 @@
 package org.collectionspace.services.listener;
 
+import java.io.Serializable;
 import java.util.GregorianCalendar;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -69,25 +71,35 @@ public abstract class AbstractUpdateObjectLocationValues implements PostCommitEv
         if (events == null || events.isEmpty()) {
             return;
         }
-        if (events.size() != 1) {
-            if (logger.isInfoEnabled()) {
-                logger.info("Received " + events.size() + " events");
-            }
+        Event event = null;
+        DocumentEventContext docEventContext;
+        if (events.isEmpty()) {
             return;
+        } else if (events.size() == 1) {
+            event = events.iterator().next();
+            if (!isDocumentEvent(event)) {
+                return;
+            }
+        } else {
+            for (Event bundledEvent : events) {
+                if (!isDocumentEvent(bundledEvent)) {
+                    continue;
+                } else {
+                    event = bundledEvent;
+                    break;
+                }
+            }
         }
-        Event event = events.iterator().next();
+
+        // These two checks are now redundant, but are included to make the IDE happy.
         if (event == null) {
             return;
         }
-
         EventContext eventContext = event.getContext();
         if (eventContext == null) {
             return;
         }
-        if (!(eventContext instanceof DocumentEventContext)) {
-            return;
-        }
-        DocumentEventContext docEventContext = (DocumentEventContext) eventContext;
+        docEventContext = (DocumentEventContext) eventContext;
         DocumentModel docModel = docEventContext.getSourceDocument();
 
         // If this document event involves a Relation record, does this pertain to
@@ -211,6 +223,20 @@ public abstract class AbstractUpdateObjectLocationValues implements PostCommitEv
                     updateCollectionObjectValuesFromMovement(collectionObjectDocModel, mostRecentMovementDocModel);
             wrappedCoreSession.saveDocument(collectionObjectDocModel);
         }
+    }
+
+    private boolean isDocumentEvent(Event event) {
+        if (event == null) {
+            return false;
+        }
+        EventContext eventContext = event.getContext();
+        if (eventContext == null) {
+            return false;
+        }
+        if (!(eventContext instanceof DocumentEventContext)) {
+            return false;
+        }
+        return true;
     }
 
     /**
