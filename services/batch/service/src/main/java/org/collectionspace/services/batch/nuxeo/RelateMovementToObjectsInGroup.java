@@ -57,7 +57,7 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
 
     // Initialization tasks
     public RelateMovementToObjectsInGroup() {
-        setSupportedInvocationModes(Arrays.asList(INVOCATION_MODE_GROUP));
+        setSupportedInvocationModes(Arrays.asList(INVOCATION_MODE_SINGLE));
     }
 
     /**
@@ -73,8 +73,8 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
             List<String> groupMovementCsids = new ArrayList<>();
             List<String> groupCollectionObjectCsids = new ArrayList<>();
 
-            if (requestIsForInvocationModeGroup()) {
-                String groupCsid = getInvocationContext().getGroupCSID();
+            if (requestIsForInvocationModeSingle()) {
+                String groupCsid = getInvocationContext().getSingleCSID();
                 if (Tools.isBlank(groupCsid)) {
                     throw new Exception(CSID_VALUES_NOT_PROVIDED_IN_INVOCATION_CONTEXT);
                 }

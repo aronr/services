@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<document name="batch">
+    <ns2:batch_common
+        xmlns:ns2="http://collectionspace.org/services/batch"
+        xmlns:ns3="http://collectionspace.org/services/jaxb">
+        <name>Relate a Movement to Objects in a Group</name>
+        <forDocTypes>
+            <forDocType>Group</forDocType>
+        </forDocTypes>
+        <supportsSingleDoc>true</supportsSingleDoc>
+        <supportsDocList>false</supportsDocList>
+        <supportsGroup>false</supportsGroup>
+        <supportsNoContext>false</supportsNoContext>
+        <createsNewFocus>false</createsNewFocus>
+        <className>org.collectionspace.services.batch.nuxeo.RelateMovementToObjectsInGroup</className>
+    </ns2:batch_common>
+</document>

@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmlReplay>
+    <auths>
+        <!-- IMPORTANT: THESE ARE STICKY :: THEY STICK AROUND UNTIL RESET, IN EXEC ORDER OF THIS FILE. -->
+        <auth ID="admin@core.collectionspace.org">YWRtaW5AY29yZS5jb2xsZWN0aW9uc3BhY2Uub3JnOkFkbWluaXN0cmF0b3I=</auth>
+    </auths>
+        
+    <!-- This tests the RelateMovementsToObjectsInGroup batch job -->
+    
+    <testGroup ID="invocationModeGroup" autoDeletePOSTS="true">
+        
+        <test ID="createBatchRecord">
+            <method>POST</method>
+            <uri>/cspace-services/batch</uri>
+            <filename>batch/batch-create-relateMovToObjsInGroup.xml</filename>
+            <expectedCodes>201</expectedCodes>
+        </test>
+        
+        <test ID="createCollectionObject1">
+            <method>POST</method>
+            <uri>/cspace-services/collectionobjects</uri>
+            <filename>batch/collObj1.xml</filename>
+            <expectedCodes>201</expectedCodes>
+        </test>
+        
+        <test ID="createCollectionObject2">
+            <method>POST</method>
+            <uri>/cspace-services/collectionobjects</uri>
+            <filename>batch/collObj1.xml</filename>
+            <expectedCodes>201</expectedCodes>
+        </test>
+        
+        <test ID="createMovement">
+            <method>POST</method>
+            <uri>/cspace-services/movements</uri>
+            <filename>batch/movement.xml</filename>
+            <vars>
+                <var ID="currentLocation">location-1</var>
+                <var ID="locationDate">1900-01-01</var>
+            </vars>
+            <expectedCodes>201</expectedCodes>
+        </test>
+        
+        <test ID="createGroup">
+            <method>POST</method>
+            <uri>/cspace-services/groups</uri>
+            <filename>batch/group.xml</filename>
+            <expectedCodes>201</expectedCodes>
+        </test>
+        
+        <test ID="relateCollectionObject1ToGroup">
+            <method>POST</method>
+            <uri>/cspace-services/relations</uri>
+            <filename>batch/relation.xml</filename>
+            <vars>
+                <var ID="subjectCsid">${createCollectionObject1.CSID}</var>
+                <var ID="subjectDocumentType">CollectionObject</var>
+                <var ID="objectCsid">${createGroup.CSID}</var>
+                <var ID="objectDocumentType">Group</var>
+            </vars>
+            <expectedCodes>201</expectedCodes>
+        </test>
+        
+        <test ID="relateCollectionObject2ToGroup">
+            <method>POST</method>
+            <uri>/cspace-services/relations</uri>
+            <filename>batch/relation.xml</filename>
+            <vars>
+                <var ID="subjectCsid">${createGroup.CSID}</var>
+                <var ID="subjectDocumentType">Group</var>
+                <var ID="objectCsid">${createCollectionObject2.CSID}</var>
+                <var ID="objectDocumentType">CollectionObject</var>
+            </vars>
+            <expectedCodes>201</expectedCodes>
+        </test>
+        
+        <test ID="relateMovementToGroup">
+            <method>POST</method>
+            <uri>/cspace-services/relations</uri>
+            <filename>batch/relation.xml</filename>
+            <vars>
+                <var ID="subjectCsid">${createMovement.CSID}</var>
+                <var ID="subjectDocumentType">Movement</var>
+                <var ID="objectCsid">${createGroup.CSID}</var>
+                <var ID="objectDocumentType">Group</var>
+            </vars>
+            <expectedCodes>201</expectedCodes>
+        </test>
+        
+        <test ID="invokeBatchWithGroup" auth="test" autoDeletePOSTS="false">
+            <method>POST</method>
+            <uri>/cspace-services/batch/${createBatchRecord.CSID}</uri>
+            <filename>batch/batch-invoke-relateMovToObjsInGroup.xml</filename>
+            <vars>
+                <var ID="singleCSID">${createGroup.CSID}</var>
+            </vars>
+            <expectedCodes>200</expectedCodes>
+        </test>
+        
+        <!-- Verify that the expected relations exist -->
+        <test ID="getMovementRelationToCollectionObject1">
+            <method>GET</method>
+            <uri>/cspace-services/relations?sbj=${createMovement.CSID}&amp;obj=${createCollectionObject1.CSID}</uri>
+            <response>
+                <expected level="ADDOK" />
+                <filename>batch/res/relations-list.res.xml</filename>
+                <vars>
+                    <var ID="totalItemsValue">1</var>
+                    <var ID="subjectCSID">${createMovement.CSID}</var>
+                    <var ID="objectCSID">${createCollectionObject1.CSID}</var>
+                </vars>
+            </response>
+            <expectedCodes>200</expectedCodes>
+
+        </test>
+        <test ID="getCollectionObject1RelationToMovement">
+            <method>GET</method>
+            <uri>/cspace-services/relations?sbj=${createCollectionObject1.CSID}&amp;obj=${createMovement.CSID}</uri>
+            <response>
+                <expected level="ADDOK" />
+                <filename>batch/res/relations-list.res.xml</filename>
+                <vars>
+                    <var ID="totalItemsValue">1</var>
+                    <var ID="subjectCSID">${createCollectionObject1.CSID}</var>
+                    <var ID="objectCSID">${createMovement.CSID}</var>
+                </vars>
+            </response>
+            <expectedCodes>200</expectedCodes>
+        </test>
+        <test ID="getMovementRelationToCollectionObject2">
+            <method>GET</method>
+            <uri>/cspace-services/relations?sbj=${createMovement.CSID}&amp;obj=${createCollectionObject2.CSID}</uri>
+            <response>
+                <expected level="ADDOK" />
+                <filename>batch/res/relations-list.res.xml</filename>
+                <vars>
+                    <var ID="totalItemsValue">1</var>
+                    <var ID="subjectCSID">${createMovement.CSID}</var>
+                    <var ID="objectCSID">${createCollectionObject2.CSID}</var>
+                </vars>
+            </response>
+            <expectedCodes>200</expectedCodes>
+        </test>
+        <test ID="getCollectionObject2RelationToMovement">
+            <method>GET</method>
+            <uri>/cspace-services/relations?sbj=${createCollectionObject2.CSID}&amp;obj=${createMovement.CSID}</uri>
+            <response>
+                <expected level="ADDOK" />
+                <filename>batch/res/relations-list.res.xml</filename>
+                <vars>
+                    <var ID="totalItemsValue">1</var>
+                    <var ID="subjectCSID">${createCollectionObject2.CSID}</var>
+                    <var ID="objectCSID">${createMovement.CSID}</var>
+                </vars>
+            </response>
+            <expectedCodes>200</expectedCodes>
+        </test>
+        
+        <!-- Via a separate event listener/handler, both CollectionObject records' -->
+        <!-- computedCurrentLocation fields should also have been updated with -->
+        <!-- the currentLocation value from the Movement record -->
+        <!--
+        <test ID="readUpdatedCollectionObjectRecord1">
+            <method>GET</method>
+            <uri>/cspace-services/collectionobjects/${createCollectionObject1.CSID}</uri>
+            <response>
+                <expected level="ADDOK" />
+                <filename>batch/res/collectionobject.res.xml</filename>
+                <vars>
+                    <var ID="computedCurrentLocationValue">${createMovement.currentLocation}</var>
+                </vars>
+            </response>
+            <expectedCodes>200</expectedCodes>
+        </test>
+        <test ID="readUpdatedCollectionObjectRecord2">
+            <method>GET</method>
+            <uri>/cspace-services/collectionobjects/${createCollectionObject2.CSID}</uri>
+            <response>
+                <expected level="ADDOK" />
+                <filename>batch/res/collectionobject.res.xml</filename>
+                <vars>
+                    <var ID="computedCurrentLocationValue">${createMovement.currentLocation}</var>
+                </vars>
+            </response>
+            <expectedCodes>200</expectedCodes>
+        </test>
+        -->
+        
+    </testGroup>
+    
+</xmlReplay>
+
