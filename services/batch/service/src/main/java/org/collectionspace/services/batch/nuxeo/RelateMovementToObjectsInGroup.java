@@ -85,16 +85,16 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
                 groupMovementCsids = getMemberCsidsFromGroup(MovementClient.SERVICE_NAME, groupCsid);
                 if (groupMovementCsids.isEmpty()) {
                     errMsg = "Could not move the objects in this group: no Movement record is currently related to this group";
-                    throw new RuntimeException(errMsg);
+                    throw new Exception(errMsg);
                 } else if (groupMovementCsids.size() > 1) {
                     errMsg = "Could not move the objects in this group: more than one Movement record is related to this group";
-                    throw new RuntimeException(errMsg);
+                    throw new Exception(errMsg);
                 }
                 // Build a list of CollectionObject records related to this group.
                 groupCollectionObjectCsids = getMemberCsidsFromGroup(CollectionObjectClient.SERVICE_NAME, groupCsid);
                 if (groupCollectionObjectCsids.isEmpty()) {
                     errMsg = "Could not move the objects in this group: no objects were found";
-                    throw new RuntimeException(errMsg);
+                    throw new Exception(errMsg);
                 }
             }
             if (logger.isInfoEnabled()) {
@@ -106,13 +106,10 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
             setResults(relateCollectionObjectsToMovement(groupCollectionObjectCsids, groupMovementCsids.get(0)));
             setCompletionStatus(STATUS_COMPLETE);
 
-        } catch (RuntimeException re) {
-            logger.error(re.getMessage());
-            setErrorResult(re.getMessage());
-            getResults().setNumAffected(0);
         } catch (Exception e) {
-            errMsg = "Error encountered in " + CLASSNAME + ": " + e.getLocalizedMessage();
-            setErrorResult(errMsg);
+            errMsg = "Error encountered in " + CLASSNAME + ": " + e.getMessage();
+            setErrorResult(e.getMessage());
+            getResults().setNumAffected(0);
         }
 
     }
