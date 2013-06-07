@@ -6,7 +6,9 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import javax.ws.rs.core.PathSegment;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
@@ -70,8 +72,8 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
 
         try {
 
-            List<String> groupMovementCsids = new ArrayList<>();
-            List<String> groupCollectionObjectCsids = new ArrayList<>();
+            Set<String> groupMovementCsids = new HashSet<>();
+            Set<String> groupCollectionObjectCsids = new HashSet<>();
 
             if (requestIsForInvocationModeSingle()) {
                 String groupCsid = getInvocationContext().getSingleCSID();
@@ -103,7 +105,7 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
 
             // Relate each CollectionObject record to the relevant Movement record,
             // if those relations do not already exist.
-            setResults(relateCollectionObjectsToMovement(groupCollectionObjectCsids, groupMovementCsids.get(0)));
+            setResults(relateCollectionObjectsToMovement(groupCollectionObjectCsids, groupMovementCsids.iterator().next()));
             setCompletionStatus(STATUS_COMPLETE);
 
         } catch (Exception e) {
@@ -114,7 +116,7 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
 
     }
 
-    private InvocationResults relateCollectionObjectsToMovement(List<String> collectionObjectCsids, String movementCsid) {
+    private InvocationResults relateCollectionObjectsToMovement(Set<String> collectionObjectCsids, String movementCsid) {
         ResourceMap resourceMap = getResourceMap();
         ResourceBase collectionObjectResource = resourceMap.get(CollectionObjectClient.SERVICE_NAME);
         ResourceBase movementResource = resourceMap.get(MovementClient.SERVICE_NAME);
@@ -394,26 +396,26 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
         return relatedRecords;
     }
 
-    private List<String> getCsidsList(AbstractCommonList list) {
-        List<String> csids = new ArrayList<>();
+    private Set<String> getCsidsList(AbstractCommonList list) {
+        Set<String> csids = new HashSet<>();
         for (AbstractCommonList.ListItem listitem : list.getListItem()) {
             csids.add(AbstractCommonListUtils.ListItemGetCSID(listitem));
         }
         return csids;
     }
 
-    private List<String> getMemberCsidsFromGroup(String serviceName, String groupCsid) throws URISyntaxException, DocumentException {
+    private Set<String> getMemberCsidsFromGroup(String serviceName, String groupCsid) throws URISyntaxException, DocumentException {
         ResourceMap resourcemap = getResourceMap();
         ResourceBase resource = resourcemap.get(serviceName);
         return getMemberCsidsFromGroup(resource, groupCsid);
     }
 
-    private List<String> getMemberCsidsFromGroup(ResourceBase resource, String groupCsid) throws URISyntaxException, DocumentException {
+    private Set<String> getMemberCsidsFromGroup(ResourceBase resource, String groupCsid) throws URISyntaxException, DocumentException {
         // The 'resource' type used here identifies the record type of the
         // related records to be retrieved
         AbstractCommonList relatedRecords =
                 getRelatedRecords(resource, groupCsid, EXCLUDE_DELETED);
-        List<String> memberCsids = getCsidsList(relatedRecords);
+        Set<String> memberCsids = getCsidsList(relatedRecords);
         return memberCsids;
     }
 }
