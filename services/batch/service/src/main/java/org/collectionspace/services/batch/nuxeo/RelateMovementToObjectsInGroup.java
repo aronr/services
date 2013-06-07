@@ -224,7 +224,7 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
             throw new Exception(errMsg);
         }
 
-        return numUpdated++;
+        return ++numUpdated;
     }
 
     private String buildRelationPayload(String subjectCsid, String subjectDoctype, String objectCsid, String objectDoctype) {
