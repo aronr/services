@@ -335,7 +335,7 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
         }
         // The 'resource' type used here identifies the record type of the
         // related records to be retrieved
-        AbstractCommonList relatedRecords = resource.getList(uriInfo);
+        AbstractCommonList relatedRecords = resource.search(uriInfo,null,null,null,null);
         if (logger.isTraceEnabled()) {
             logger.trace("Identified " + relatedRecords.getTotalItems()
                     + " record(s) related to the object record via direction " + relationshipDirection + " with CSID " + csid);

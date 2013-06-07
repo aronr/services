@@ -396,7 +396,7 @@ public abstract class ResourceBase
         return (AbstractCommonList) handler.getCommonPartList();
     }
 
-    private AbstractCommonList search(
+    public AbstractCommonList search(
     		UriInfo uriInfo,
     		String orderBy,
     		String keywords,
