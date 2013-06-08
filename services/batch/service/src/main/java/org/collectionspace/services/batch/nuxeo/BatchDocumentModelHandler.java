@@ -168,14 +168,9 @@ public class BatchDocumentModelHandler
 		if(status == Invocable.STATUS_ERROR) {
 			InvocationError error = batchInstance.getErrorInfo();
 			if(error.getResponseCode() == BAD_REQUEST_STATUS) {
-				throw new BadRequestException(
-						"BatchResouce: batchProcess encountered error: "
-								+batchInstance.getErrorInfo());
+                            logger.error("Invalid batch invocation request: " + batchInstance.getErrorInfo().getMessage());
 			} else {
-				throw new RuntimeException(
-						"BatchResouce: batchProcess encountered error: "
-								+batchInstance.getErrorInfo());
-
+                            logger.error(batchInstance.getErrorInfo().getMessage());
 			}
 		}
 		InvocationResults results = batchInstance.getResults();

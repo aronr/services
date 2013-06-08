@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import javax.ws.rs.core.Response;
 import org.collectionspace.services.common.ResourceMap;
+import static org.collectionspace.services.common.invocable.Invocable.STATUS_ERROR;
 import org.collectionspace.services.common.invocable.InvocationContext;
 import org.collectionspace.services.common.invocable.InvocationResults;
 import org.slf4j.Logger;
@@ -177,7 +178,7 @@ public abstract class AbstractBatchInvocable implements BatchInvocable {
         invResults.setUserNote(getErrorInfo().getMessage());
         setResults(invResults);
     }
-
+    
     @Override
     public abstract void run();
 }

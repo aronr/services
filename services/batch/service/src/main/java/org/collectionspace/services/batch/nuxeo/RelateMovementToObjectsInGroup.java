@@ -3,7 +3,6 @@ package org.collectionspace.services.batch.nuxeo;
 import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -107,86 +106,90 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
             // if those relations do not already exist.
             setResults(relateCollectionObjectsToMovement(groupCollectionObjectCsids, groupMovementCsids.iterator().next()));
             setCompletionStatus(STATUS_COMPLETE);
-
         } catch (Exception e) {
-            errMsg = "Error encountered in " + CLASSNAME + ": " + e.getMessage();
-            setErrorResult(e.getMessage());
-            getResults().setNumAffected(0);
+            setCompletionStatus(STATUS_ERROR);
+            setErrorInfo(new InvocationError(INT_ERROR_STATUS, e.getMessage()));
+            InvocationResults results = new InvocationResults();
+            results.setUserNote(e.getMessage());
+            setResults(results);
         }
-
     }
 
-    private InvocationResults relateCollectionObjectsToMovement(Set<String> collectionObjectCsids, String movementCsid) {
+    private InvocationResults relateCollectionObjectsToMovement(Set<String> collectionObjectCsids, String movementCsid)
+            throws Exception {
         ResourceMap resourceMap = getResourceMap();
         ResourceBase collectionObjectResource = resourceMap.get(CollectionObjectClient.SERVICE_NAME);
         ResourceBase movementResource = resourceMap.get(MovementClient.SERVICE_NAME);
         String subjectCsid;
         String objectCsid;
         boolean objectAlreadyRelatedToMovement;
-        int numUpdated = 0;
+        int numAffected = 0;
 
-        try {
+        // For each CollectionObject record
+        for (String collectionObjectCsid : collectionObjectCsids) {
 
-            // For each CollectionObject record
-            for (String collectionObjectCsid : collectionObjectCsids) {
+            // FIXME: Optionally set competition status here to
+            // indicate what percentage of records have been processed.
 
-                // FIXME: Optionally set competition status here to
-                // indicate what percentage of records have been processed.
-
-                // If this CollectionObject record is soft-deleted, skip it
-                // and go onto the next record
-                if (isRecordDeleted(collectionObjectResource, collectionObjectCsid)) {
-                    if (logger.isTraceEnabled()) {
-                        logger.trace("Skipping soft-deleted CollectionObject record with CSID " + collectionObjectCsid);
-                    }
-                    continue;
+            // If this CollectionObject record is soft-deleted, skip it
+            // and go onto the next record
+            if (isRecordDeleted(collectionObjectResource, collectionObjectCsid)) {
+                if (logger.isTraceEnabled()) {
+                    logger.trace("Skipping soft-deleted CollectionObject record with CSID " + collectionObjectCsid);
                 }
-                // Get all Movement records related to this CollectionObject record
-                AbstractCommonList relatedMovements =
-                        getRelatedRecords(movementResource, collectionObjectCsid, EXCLUDE_DELETED);
-                List<ListItem> relatedMovementItems = relatedMovements.getListItem();
-                // If this CollectionObject is related to one or more
-                // Movement records, check whether it might already
-                // be related to the relevant Movement record.
-                // If it is, avoid creating a duplicate relation by
-                // skipping it and going onto the next record.
-                if (!relatedMovementItems.isEmpty()) {
-                    objectAlreadyRelatedToMovement = false;
-                    for (ListItem relatedMovementItem : relatedMovementItems) {
-                        subjectCsid = AbstractCommonListUtils.ListItemGetElementValue(relatedMovementItem, RelationJAXBSchema.SUBJECT_CSID);
-                        if (Tools.notBlank(subjectCsid) && subjectCsid.equals(movementCsid)) {
-                            objectAlreadyRelatedToMovement = true;
-                            break;
-                        }
-                        objectCsid = AbstractCommonListUtils.ListItemGetElementValue(relatedMovementItem, RelationJAXBSchema.OBJECT_CSID);
-                        if (Tools.notBlank(objectCsid) && objectCsid.equals(movementCsid)) {
-                            objectAlreadyRelatedToMovement = true;
-                            break;
-                        }
-                    }
-                    if (objectAlreadyRelatedToMovement) {
+                continue;
+            }
+            // Get all Movement records related to this CollectionObject record
+            AbstractCommonList relatedMovements =
+                    getRelatedRecords(movementResource, collectionObjectCsid, EXCLUDE_DELETED);
+            List<ListItem> relatedMovementItems = relatedMovements.getListItem();
+            // If this CollectionObject is related to one or more
+            // Movement records, check whether it might already
+            // be related to the relevant Movement record.
+            // If it is, avoid creating a duplicate relation by
+            // skipping it and going onto the next record.
+            if (!relatedMovementItems.isEmpty()) {
+                objectAlreadyRelatedToMovement = false;
+                for (ListItem relatedMovementItem : relatedMovementItems) {
+                    subjectCsid = AbstractCommonListUtils.ListItemGetElementValue(relatedMovementItem, RelationJAXBSchema.SUBJECT_CSID);
+                    if (Tools.isBlank(subjectCsid)) {
+                        logger.warn("Unexpectedly found null or empty subject CSID value in relation record");
                         continue;
                     }
+                    if (subjectCsid.equals(movementCsid)) {
+                        objectAlreadyRelatedToMovement = true;
+                        break;
+                    }
+                    objectCsid = AbstractCommonListUtils.ListItemGetElementValue(relatedMovementItem, RelationJAXBSchema.OBJECT_CSID);
+                    if (Tools.isBlank(subjectCsid)) {
+                        logger.warn("Unexpectedly found null or empty object CSID value in relation record");
+                        continue;
+                    }
+                    if (objectCsid.equals(movementCsid)) {
+                        objectAlreadyRelatedToMovement = true;
+                        break;
+                    }
                 }
-                // Relate this CollectionObject record to the relevant Movement record
-                numUpdated = relateCollectionObjectToMovement(collectionObjectCsid,
-                        movementCsid, resourceMap, numUpdated);
+                if (objectAlreadyRelatedToMovement) {
+                    continue;
+                }
             }
-
-        } catch (Exception e) {
-            errMsg = "Error encountered in " + CLASSNAME + ": " + e.getMessage() + " ";
-            errMsg = errMsg + "Successfully related " + numUpdated + " object(s) to movement prior to error";
-            logger.error(errMsg);
-            setErrorResult(errMsg);
-            getResults().setNumAffected(numUpdated);
-            return getResults();
+            // Relate this CollectionObject record to the relevant Movement record
+            numAffected = relateCollectionObjectToMovement(collectionObjectCsid,
+                    movementCsid, resourceMap, numAffected);
         }
 
-        String successMsg = "Related " + numUpdated + " object(s) to movement";
+        String successMsg;
+        if (numAffected > 0) {
+            successMsg = "Related " + numAffected + " " + (numAffected == 1 ? "object" : "objects") + " to movement";
+        } else {
+            successMsg = "All objects in group are already related to its movement";
+        }
         logger.info(successMsg);
-        getResults().setUserNote(successMsg);
-        getResults().setNumAffected(numUpdated);
-        return getResults();
+        InvocationResults results = new InvocationResults();
+        results.setUserNote(successMsg);
+        results.setNumAffected(numAffected);
+        return results;
     }
 
     /**
@@ -328,14 +331,26 @@ public class RelateMovementToObjectsInGroup extends AbstractBatchInvocable {
 
     private AbstractCommonList getRecordsRelatedToCsid(ResourceBase resource, String csid,
             String relationshipDirection, boolean excludeDeletedRecords) throws URISyntaxException {
-        UriInfo uriInfo = createUriInfo();
-        uriInfo.getQueryParameters().add(relationshipDirection, csid);
-        if (excludeDeletedRecords) {
-            uriInfo = addFilterToExcludeSoftDeletedRecords(uriInfo);
+        // UriInfo uriInfo = createUriInfo();
+        // FIXME Build query string via library calls rather than hand-constructing
+        StringBuffer queryStrBuf = new StringBuffer("");
+        if (Tools.notBlank(relationshipDirection) && Tools.notBlank(csid)) {
+            queryStrBuf.append(relationshipDirection);
+            queryStrBuf.append("=");
+            queryStrBuf.append(csid);
         }
+        if (excludeDeletedRecords) {
+            if (Tools.notBlank(queryStrBuf.toString())) {
+                queryStrBuf.append("&");
+            }
+            queryStrBuf.append(WorkflowClient.WORKFLOW_QUERY_NONDELETED);
+            queryStrBuf.append("=");
+            queryStrBuf.append(Boolean.FALSE.toString());
+        }
+        UriInfo uriInfo = createRelatedRecordsUriInfo(queryStrBuf.toString());
         // The 'resource' type used here identifies the record type of the
         // related records to be retrieved
-        AbstractCommonList relatedRecords = resource.search(uriInfo,null,null,null,null);
+        AbstractCommonList relatedRecords = resource.getList(uriInfo);
         if (logger.isTraceEnabled()) {
             logger.trace("Identified " + relatedRecords.getTotalItems()
                     + " record(s) related to the object record via direction " + relationshipDirection + " with CSID " + csid);

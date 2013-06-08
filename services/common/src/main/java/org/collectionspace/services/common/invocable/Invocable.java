@@ -59,6 +59,10 @@ public interface Invocable {
 		public void setMessage(String message) {
 			this.message = message;
 		}
+                
+                public String toString() {
+                    return message;
+                }
 	}
 
 	public String INVOCATION_MODE_SINGLE = "single";
